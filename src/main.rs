@@ -9,8 +9,8 @@ use windows::Win32::UI::Input::KeyboardAndMouse::*;
 
 const FRAMES_PER_SECOND: f32 = 20.0;
 const MOVE_SPEED: i32 = 8;
-const ARENA_X: usize = 20;
-const ARENA_Y: usize = 20;
+const ARENA_X: usize = 17;
+const ARENA_Y: usize = 15;
 
 const HEAD: i32 = 1;
 const BODY: i32 = 2;
@@ -56,18 +56,10 @@ impl Snake {
     /// Will move the snake body one space
     fn move_once(&mut self) {
         let old_pos = self.body.clone().into_iter();
-        let head = self.body.get_mut(0).expect("snake is empty");
+        // move the head
+        self.body[0] = Snake::next_pos(self.body[0], self.direction);
 
-        use Direction as Dir;
-        match self.direction {
-            Dir::Up => head.y -= 1,
-            Dir::Down => head.y += 1,
-            Dir::Left => head.x -= 1,
-            Dir::Right => head.x += 1,
-        }
-        head.x = wrap(head.x, 0, ARENA_X as i32 - 1);
-        head.y = wrap(head.y, 0, ARENA_X as i32 - 1);
-
+        // make the rest of the body follow
         self.body
             .iter_mut()
             .skip(1)
@@ -80,7 +72,7 @@ impl Snake {
     /// Will insert a new head to the snake
     fn add_new_head(&mut self) {
         self.body
-            .insert(0, Snake::next_pos(*self.head(), self.direction));
+            .insert(0, Snake::next_pos(*self.head_pos(), self.direction));
     }
 
     /// Returns the next position of a position based on the given direction
@@ -105,7 +97,7 @@ impl Snake {
             },
         };
         next_pos.x = wrap(next_pos.x, 0, ARENA_X as i32 - 1);
-        next_pos.y = wrap(next_pos.y, 0, ARENA_X as i32 - 1);
+        next_pos.y = wrap(next_pos.y, 0, ARENA_Y as i32 - 1);
         next_pos
     }
 
@@ -128,13 +120,13 @@ impl Snake {
     }
 
     /// Get the position of the current head
-    fn head(&self) -> &Position {
+    fn head_pos(&self) -> &Position {
         self.body.get(0).expect("Snake is empty")
     }
 
     /// Check if the snakes head is overlapping with any of the body segments
     fn should_be_dead(&self) -> bool {
-        self.body.iter().skip(1).any(|pos| self.head() == pos)
+        self.body.iter().skip(1).any(|pos| self.head_pos() == pos)
     }
 }
 
@@ -197,7 +189,7 @@ fn main() {
             // i == 1 will make it so the game doesn't update
             // a million times a second
             if i == 1 && !paused {
-                let next_pos = Snake::next_pos(*snake.head(), snake.direction);
+                let next_pos = Snake::next_pos(*snake.head_pos(), snake.direction);
                 // need to check if the next space is food
                 // so we can decide whether we should increase snake size
                 // or just move forward
