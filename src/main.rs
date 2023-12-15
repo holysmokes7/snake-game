@@ -286,11 +286,12 @@ fn print_score(std_handle: HANDLE, snake: &Snake) {
 }
 
 fn print_paused(std_handle: HANDLE) {
+    let x_offset = if ARENA_X % 2 == 0 { 6 } else { 7 };
     unsafe {
         SetConsoleCursorPosition(
             std_handle,
             COORD {
-                X: ARENA_X as i16 - 6,
+                X: ARENA_X as i16 - x_offset,
                 Y: ARENA_Y as i16 / 3,
             },
         )
