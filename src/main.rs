@@ -57,7 +57,7 @@ impl Snake {
     fn move_once(&mut self) {
         let old_pos = self.body.clone().into_iter();
         // move the head
-        self.body[0] = Snake::next_pos(self.body[0], self.direction);
+        self.body[0] = self.next_head_pos();
 
         // make the rest of the body follow
         self.body
@@ -71,29 +71,28 @@ impl Snake {
 
     /// Will insert a new head to the snake
     fn add_new_head(&mut self) {
-        self.body
-            .insert(0, Snake::next_pos(*self.head_pos(), self.direction));
+        self.body.insert(0, self.next_head_pos());
     }
 
-    /// Returns the next position of a position based on the given direction
-    fn next_pos(pos: Position, dir: Direction) -> Position {
+    /// Returns the next position of the head of the snake
+    fn next_head_pos(&self) -> Position {
         use Direction as Dir;
-        let mut next_pos = match dir {
+        let mut next_pos = match self.direction {
             Dir::Up => Position {
-                x: pos.x,
-                y: pos.y - 1,
+                x: self.head_pos().x,
+                y: self.head_pos().y - 1,
             },
             Dir::Down => Position {
-                x: pos.x,
-                y: pos.y + 1,
+                x: self.head_pos().x,
+                y: self.head_pos().y + 1,
             },
             Dir::Left => Position {
-                x: pos.x - 1,
-                y: pos.y,
+                x: self.head_pos().x - 1,
+                y: self.head_pos().y,
             },
             Dir::Right => Position {
-                x: pos.x + 1,
-                y: pos.y,
+                x: self.head_pos().x + 1,
+                y: self.head_pos().y,
             },
         };
         next_pos.x = wrap(next_pos.x, 0, ARENA_X as i32 - 1);
@@ -133,15 +132,8 @@ impl Snake {
 fn main() {
     let std_handle = unsafe { GetStdHandle(STD_OUTPUT_HANDLE).expect("Failed to get std handle") };
 
-    // set cursor to be invisible, this only works 80% of the time
-    let mut cursor_info: CONSOLE_CURSOR_INFO = Default::default();
-    unsafe {
-        GetConsoleCursorInfo(std_handle, addr_of_mut!(cursor_info))
-            .expect("Couldn't get console cursor info");
-        cursor_info.bVisible.0 = 0;
-        SetConsoleCursorInfo(std_handle, addr_of_mut!(cursor_info))
-            .expect("Couldn't set console cursor info");
-    };
+    // set cursor to be invisible
+    set_cursor_visible(std_handle, false);
 
     let mut arena = [[0; ARENA_X]; ARENA_Y];
     // starting position for snake
@@ -182,6 +174,7 @@ fn main() {
                         };
                     } else if key == 27 {
                         // 27 is the escape key
+                        set_cursor_visible(std_handle, true);
                         break 'running;
                     }
                 }
@@ -189,13 +182,14 @@ fn main() {
             // i == 1 will make it so the game doesn't update
             // a million times a second
             if i == 1 && !paused {
-                let next_pos = Snake::next_pos(*snake.head_pos(), snake.direction);
+                let next_pos = snake.next_head_pos();
                 // need to check if the next space is food
                 // so we can decide whether we should increase snake size
                 // or just move forward
                 if arena[next_pos.y as usize][next_pos.x as usize] == FOOD {
                     snake.add_new_head();
                     if arena.iter_mut().flatten().all(|num| *num != 0) {
+                        set_cursor_visible(std_handle, true);
                         break 'running;
                     }
                     spawn_food(&mut arena);
@@ -208,6 +202,7 @@ fn main() {
                 print_score(std_handle, &snake);
                 // want to end game after last frame is rendered
                 if snake.should_be_dead() {
+                    set_cursor_visible(std_handle, true);
                     break 'running;
                 }
                 got_direction = false;
@@ -215,6 +210,17 @@ fn main() {
             std::thread::sleep(Duration::from_secs_f32(1.0 / FRAMES_PER_SECOND));
         }
     }
+}
+
+fn set_cursor_visible(std_handle: HANDLE, visible: bool) {
+    let mut cursor_info: CONSOLE_CURSOR_INFO = Default::default();
+    unsafe {
+        GetConsoleCursorInfo(std_handle, addr_of_mut!(cursor_info))
+            .expect("Couldn't get console cursor info");
+        cursor_info.bVisible.0 = visible as i32;
+        SetConsoleCursorInfo(std_handle, addr_of_mut!(cursor_info))
+            .expect("Couldn't set console cursor info");
+    };
 }
 
 fn spawn_food(arena: &mut [[i32; ARENA_X]; ARENA_Y]) {
