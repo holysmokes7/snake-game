@@ -100,24 +100,6 @@ impl Snake {
         next_pos
     }
 
-    /// Update direction based on which key is being pressed and current direction
-    fn update_direction(&mut self, key: u8) {
-        let new_direction = match Direction::from_key(key) {
-            Ok(direction) => direction,
-            Err(_) => self.direction,
-        };
-        use Direction as Dir;
-        // if new direction is opposite of current direction,
-        // don't change current direction
-        self.direction = match (self.direction, new_direction) {
-            (Dir::Up, Dir::Down) => self.direction,
-            (Dir::Down, Dir::Up) => self.direction,
-            (Dir::Left, Dir::Right) => self.direction,
-            (Dir::Right, Dir::Left) => self.direction,
-            _ => new_direction,
-        }
-    }
-
     /// Get the position of the current head
     fn head_pos(&self) -> &Position {
         self.body.get(0).expect("Snake is empty")
@@ -126,6 +108,20 @@ impl Snake {
     /// Check if the snakes head is overlapping with any of the body segments
     fn should_be_dead(&self) -> bool {
         self.body.iter().skip(1).any(|pos| self.head_pos() == pos)
+    }
+
+    /// Return direction based on which key is being pressed and current direction
+    fn update_direction(&mut self, new: Direction) {
+        use Direction as Dir;
+        // if new direction is opposite of current direction,
+        // don't change current direction
+        self.direction = match (self.direction, new) {
+            (Dir::Up, Dir::Down) => self.direction,
+            (Dir::Down, Dir::Up) => self.direction,
+            (Dir::Left, Dir::Right) => self.direction,
+            (Dir::Right, Dir::Left) => self.direction,
+            _ => new,
+        };
     }
 }
 
@@ -160,8 +156,10 @@ fn main() {
             for key in 0x1u8..=0xFEu8 {
                 if GetAsyncKeyState(key as i32) & 0b1 != 0 {
                     if !got_direction {
-                        got_direction = true;
-                        snake.update_direction(key);
+                        if let Ok(new) = Direction::from_key(key) {
+                            got_direction = true;
+                            snake.update_direction(new);
+                        }
                     }
                     if key == 32 {
                         // 32 is the space key
